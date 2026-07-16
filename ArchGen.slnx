@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ArchGen.Cli/ArchGen.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ArchGen.Tests/ArchGen.Tests.csproj" />
+  </Folder>
+</Solution>
