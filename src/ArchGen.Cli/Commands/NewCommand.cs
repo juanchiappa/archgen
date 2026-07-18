@@ -40,6 +40,11 @@ namespace ArchGen.Cli.Commands
                 getDefaultValue: () => Directory.GetCurrentDirectory(),
                 description: "Directory where the project folder will be created.");
 
+            var gitOption = new Option<bool>(
+                aliases: new[] { "--git" },
+                getDefaultValue: () => false,
+                description: "Initialize git and publish to GitHub (requires 'gh' installed and authenticated).");
+
             var command = new Command("new", "Scaffold a new .NET project.")
         {
             nameArgument,
@@ -47,30 +52,30 @@ namespace ArchGen.Cli.Commands
             persistenceOption,
             ormOption,
             uiOption,
-            outputOption
+            outputOption,
+            gitOption
         };
 
-            command.SetHandler(
-                (name, pattern, persistence, orm, ui, output) =>
+            command.SetHandler(context =>
+            {
+                var options = new ProjectOptions
                 {
-                    var options = new ProjectOptions
-                    {
-                        ProjectName = name,
-                        OutputDirectory = output,
-                        Pattern = pattern,
-                        Persistence = persistence,
-                        Orm = orm,
-                        Ui = ui
-                    };
+                    ProjectName = context.ParseResult.GetValueForArgument(nameArgument),
+                    OutputDirectory = context.ParseResult.GetValueForOption(outputOption)!,
+                    Pattern = context.ParseResult.GetValueForOption(patternOption),
+                    Persistence = context.ParseResult.GetValueForOption(persistenceOption),
+                    Orm = context.ParseResult.GetValueForOption(ormOption),
+                    Ui = context.ParseResult.GetValueForOption(uiOption)
+                };
 
-                    Execute(options);
-                },
-                nameArgument, patternOption, persistenceOption, ormOption, uiOption, outputOption);
+                var enableGit = context.ParseResult.GetValueForOption(gitOption);
 
+                Execute(options, enableGit);
+            });
             return command;
         }
 
-        public static void Execute(ProjectOptions options)
+        public static void Execute(ProjectOptions options, bool enableGit = false)
         {
             Console.WriteLine($"Scaffolding '{options.ProjectName}' " +
                 $"[pattern={options.Pattern}, persistence={options.Persistence}, ui={options.Ui}]...");
@@ -80,15 +85,19 @@ namespace ArchGen.Cli.Commands
                 var generator = PatternRegistry.Resolve(options.Pattern);
                 generator.Generate(options);
 
-                Console.WriteLine($"Done. Project created at: " +
-                    $"{Path.Combine(options.OutputDirectory, options.ProjectName)}");
+                var solutionDirectory = Path.Combine(options.OutputDirectory, options.ProjectName);
+                Console.WriteLine($"Done. Project created at: {solutionDirectory}");
+
+                if (enableGit)
+                {
+                    Generators.GitIntegration.TryInitializeAndPublish(solutionDirectory, options.ProjectName);
+                }
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error: {ex.Message}");
                 Environment.ExitCode = 1;
             }
-
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using ArchGen.Cli.Generators;
 using ArchGen.Cli.Options;
+using ArchGen.Cli.Persistence;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -34,6 +35,19 @@ namespace ArchGen.Cli.Patterns
                 Path.Combine(dataAccessDir, $"{dataAccessProjectName}.csproj"));
 
             GenerateUiProject(solutionDirectory, businessLogicDir, businessLogicProjectName, options);
+
+            var rootNamespace = $"{options.ProjectName}.DataAccess";
+            var persistenceGenerator = PersistenceRegistry.Resolve(options.Persistence);
+            persistenceGenerator.Generate(dataAccessDir, rootNamespace, options);
+
+            foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
+            {
+                SolutionGenerator.AddPackage(
+                    solutionDirectory,
+                    Path.Combine(dataAccessDir, $"{dataAccessProjectName}.csproj"),
+                    packageId,
+                    version);
+            }
 
             WriteReadme(solutionDirectory, options);
         }
