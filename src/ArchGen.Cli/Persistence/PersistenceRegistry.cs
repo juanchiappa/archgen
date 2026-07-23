@@ -7,20 +7,25 @@ namespace ArchGen.Cli.Persistence
 {
     public static class PersistenceRegistry
     {
-        private static readonly Dictionary<PersistenceKind, Func<IPersistenceGenerator>> Factories = new()
+        private static readonly Dictionary<(PersistenceKind, OrmKind), Func<IPersistenceGenerator>> OrmAwareFactories = new()
         {
-            [PersistenceKind.Json] = () => new JsonPersistenceGenerator(),
-            // [PersistenceKind.Sqlite] = () => new SqlitePersistenceGenerator(),     // próxima fase
-            // [PersistenceKind.Postgres] = () => new PostgresPersistenceGenerator(), // próxima fase
+            [(PersistenceKind.Sqlite, OrmKind.EfCore)] = () => new SqliteEfCorePersistenceGenerator(),
+            [(PersistenceKind.Sqlite, OrmKind.Dapper)] = () => new SqliteDapperPersistenceGenerator(),
+            [(PersistenceKind.Postgres, OrmKind.EfCore)] = () => new PostgresEfCorePersistenceGenerator(),
+            [(PersistenceKind.Postgres, OrmKind.Dapper)] = () => new PostgresDapperPersistenceGenerator(),
         };
 
-        public static IPersistenceGenerator Resolve(PersistenceKind kind)
+        public static IPersistenceGenerator Resolve(ProjectOptions options)
         {
-            if (!Factories.TryGetValue(kind, out var factory))
+            if (options.Persistence == PersistenceKind.Json)
+            {
+                return new JsonPersistenceGenerator();
+            }
+
+            if (!OrmAwareFactories.TryGetValue((options.Persistence, options.Orm), out var factory))
             {
                 throw new NotSupportedException(
-                    $"Persistence backend '{kind}' is not implemented yet. Available backends: " +
-                    string.Join(", ", Factories.Keys));
+                    $"No persistence generator registered for {options.Persistence} + {options.Orm}.");
             }
 
             return factory();

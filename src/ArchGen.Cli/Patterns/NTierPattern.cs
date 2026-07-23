@@ -37,7 +37,7 @@ namespace ArchGen.Cli.Patterns
             GenerateUiProject(solutionDirectory, businessLogicDir, businessLogicProjectName, options);
 
             var dataAccessNamespace = $"{options.ProjectName}.DataAccess";
-            var persistenceGenerator = PersistenceRegistry.Resolve(options.Persistence);
+            var persistenceGenerator = PersistenceRegistry.Resolve(options);
             var entitiesAssemblyName = entitiesProjectName; // "{ProjectName}.Entities"
             var entitiesNamespace = entitiesProjectName;
 

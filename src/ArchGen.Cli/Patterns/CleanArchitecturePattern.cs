@@ -40,8 +40,7 @@ namespace ArchGen.Cli.Patterns
             var domainNamespace = domainName;
             var infrastructureNamespace = infrastructureName;
 
-            var persistenceGenerator = PersistenceRegistry.Resolve(options.Persistence);
-
+            var persistenceGenerator = PersistenceRegistry.Resolve(options);
             persistenceGenerator.GenerateAbstraction(domainDir, domainNamespace);
 
             persistenceGenerator.GenerateImplementation(
