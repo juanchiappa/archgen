@@ -50,6 +50,10 @@ namespace ArchGen.Cli.Patterns
             {
                 GenerateApiHost(uiDir, dataAccessNamespace, options);
             }
+            else if (options.Ui == UiKind.WinForms)
+            {
+                GenerateWinFormsHost(solutionDirectory, uiDir, dataAccessNamespace, options);
+            }
             foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
             {
                 SolutionGenerator.AddPackage(
@@ -74,8 +78,8 @@ namespace ArchGen.Cli.Patterns
             {
                 UiKind.Console => SolutionGenerator.CreateConsoleProject(solutionDirectory, uiProjectName),
                 UiKind.Api => SolutionGenerator.CreateWebApiProject(solutionDirectory, uiProjectName),
-                _ => throw new NotSupportedException(
-                    $"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
+                UiKind.WinForms => SolutionGenerator.CreateWinFormsProject(solutionDirectory, uiProjectName),
+                _ => throw new NotSupportedException($"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
                     "Use --ui console or --ui api for now.")
             };
 
@@ -133,5 +137,73 @@ namespace ArchGen.Cli.Patterns
             File.WriteAllText(Path.Combine(uiDir, "Program.cs"), content);
         }
 
+        private static void GenerateWinFormsHost(
+    string solutionDirectory, string uiDir, string dataAccessNamespace, ProjectOptions options)
+        {
+            var uiProjectName = $"{options.ProjectName}.UI";
+            var uiNamespace = uiProjectName; // dotnet new usa el nombre del proyecto como namespace raíz
+            var concreteClassName = Persistence.PersistenceProviderNames.ConcreteClassNameFor(options.Persistence);
+
+            var programContent = $$"""
+                using Microsoft.Extensions.DependencyInjection;
+                using {{dataAccessNamespace}};
+
+                namespace {{uiNamespace}};
+
+                internal static class Program
+                {
+                    [STAThread]
+                    static void Main()
+                    {
+                        var services = new ServiceCollection();
+                        services.AddSingleton<IPersistenceProvider, {{concreteClassName}}>();
+                        using var serviceProvider = services.BuildServiceProvider();
+                        var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+
+                        ApplicationConfiguration.Initialize();
+                        Application.Run(new Form1(persistenceProvider));
+                    }
+                }
+                """;
+
+            var form1Content = $$"""
+                using {{dataAccessNamespace}};
+
+                namespace {{uiNamespace}};
+
+                public partial class Form1 : Form
+                {
+                    public Form1() : this(null!)
+                    {
+                    }
+
+                    public Form1(IPersistenceProvider persistenceProvider)
+                    {
+                        InitializeComponent();
+                        Text = "{{options.ProjectName}}";
+
+                        var label = new Label
+                        {
+                            AutoSize = true,
+                            Location = new Point(20, 20),
+                            Text = persistenceProvider is null
+                                ? "No persistence provider resolved."
+                                : $"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}"
+                        };
+
+                        Controls.Add(label);
+                    }
+                }
+                """;
+
+            File.WriteAllText(Path.Combine(uiDir, "Program.cs"), programContent);
+            File.WriteAllText(Path.Combine(uiDir, "Form1.cs"), form1Content);
+
+            SolutionGenerator.AddPackage(
+                solutionDirectory,
+                Path.Combine(uiDir, $"{uiProjectName}.csproj"),
+                "Microsoft.Extensions.DependencyInjection",
+                "8.0.0");
+        }
     }
 }
