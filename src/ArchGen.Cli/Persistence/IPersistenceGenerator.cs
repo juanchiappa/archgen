@@ -15,6 +15,8 @@ namespace ArchGen.Cli.Persistence
             string implementationDirectory,
             string implementationNamespace,
             string abstractionNamespace,
+            string entitiesAssemblyName,
+            string entitiesNamespace,
             ProjectOptions options);
 
         IReadOnlyList<(string PackageId, string Version)> RequiredPackages(ProjectOptions options);

@@ -20,6 +20,8 @@ public sealed class JsonPersistenceGenerator : IPersistenceGenerator
         string implementationDirectory,
         string implementationNamespace,
         string abstractionNamespace,
+        string entitiesAssemblyName,
+        string entitiesNamespace,
         ProjectOptions options)
     {
         File.WriteAllText(

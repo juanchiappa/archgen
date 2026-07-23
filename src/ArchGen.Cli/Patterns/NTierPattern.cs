@@ -38,10 +38,13 @@ namespace ArchGen.Cli.Patterns
 
             var dataAccessNamespace = $"{options.ProjectName}.DataAccess";
             var persistenceGenerator = PersistenceRegistry.Resolve(options.Persistence);
+            var entitiesAssemblyName = entitiesProjectName; // "{ProjectName}.Entities"
+            var entitiesNamespace = entitiesProjectName;
+
             persistenceGenerator.GenerateAbstraction(dataAccessDir, dataAccessNamespace);
             persistenceGenerator.GenerateImplementation(
-                dataAccessDir, dataAccessNamespace, dataAccessNamespace, options);
-
+                dataAccessDir, dataAccessNamespace, dataAccessNamespace,
+                entitiesAssemblyName, entitiesNamespace, options);
             foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
             {
                 SolutionGenerator.AddPackage(

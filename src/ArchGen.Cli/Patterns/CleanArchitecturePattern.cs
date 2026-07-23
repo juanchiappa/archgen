@@ -45,8 +45,8 @@ namespace ArchGen.Cli.Patterns
             persistenceGenerator.GenerateAbstraction(domainDir, domainNamespace);
 
             persistenceGenerator.GenerateImplementation(
-                infrastructureDir, infrastructureNamespace, domainNamespace, options);
-
+                infrastructureDir, infrastructureNamespace, domainNamespace,
+                entitiesAssemblyName: domainName, entitiesNamespace: domainNamespace, options);
             foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
             {
                 SolutionGenerator.AddPackage(
