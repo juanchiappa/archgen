@@ -46,8 +46,8 @@ namespace ArchGen.Cli.Interactive
                     UiKind.Wpf,
                     UiKind.Blazor));
 
-            var outputDirectory = AnsiConsole.Ask(
-                "[bold]Output directory[/]:", Directory.GetCurrentDirectory());
+            var outputDirectory = Path.GetFullPath(AnsiConsole.Ask(
+                        "[bold]Output directory[/]:", Directory.GetCurrentDirectory()));
 
             return new ProjectOptions
             {

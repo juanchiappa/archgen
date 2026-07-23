@@ -62,7 +62,7 @@ namespace ArchGen.Cli.Commands
                 var options = new ProjectOptions
                 {
                     ProjectName = context.ParseResult.GetValueForArgument(nameArgument),
-                    OutputDirectory = context.ParseResult.GetValueForOption(outputOption)!,
+                    OutputDirectory = Path.GetFullPath(context.ParseResult.GetValueForOption(outputOption)!),
                     Pattern = context.ParseResult.GetValueForOption(patternOption),
                     Persistence = context.ParseResult.GetValueForOption(persistenceOption),
                     Orm = context.ParseResult.GetValueForOption(ormOption),
