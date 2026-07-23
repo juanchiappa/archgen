@@ -104,38 +104,100 @@ namespace ArchGen.Cli.Patterns
                 "Microsoft.Extensions.DependencyInjection.Abstractions",
                 "8.0.0");
 
-            var programContent = options.Ui == UiKind.Api
-                            ? $$"""
-                    using Microsoft.Extensions.DependencyInjection;
-                    using {{infrastructureNamespace}};
-                    using {{domainNamespace}};
+            switch (options.Ui)
+            {
+                case UiKind.Api:
+                    File.WriteAllText(Path.Combine(uiDir, "Program.cs"), $$"""
+                        using Microsoft.Extensions.DependencyInjection;
+                        using {{infrastructureNamespace}};
+                        using {{domainNamespace}};
 
-                    var builder = WebApplication.CreateBuilder(args);
-                    builder.Services.AddInfrastructure();
+                        var builder = WebApplication.CreateBuilder(args);
+                        builder.Services.AddInfrastructure();
 
-                    var app = builder.Build();
+                        var app = builder.Build();
 
-                    app.MapGet("/", (IPersistenceProvider persistenceProvider) =>
-                        $"{{options.ProjectName}} API is running. Persistence provider resolved via DI: {persistenceProvider.GetType().Name}");
+                        app.MapGet("/", (IPersistenceProvider persistenceProvider) =>
+                            $"{{options.ProjectName}} API is running. Persistence provider resolved via DI: {persistenceProvider.GetType().Name}");
 
-                    app.Run();
-                    """
-                            : $$"""
-                    using Microsoft.Extensions.DependencyInjection;
-                    using {{infrastructureNamespace}};
-                    using {{domainNamespace}};
+                        app.Run();
+                        """);
+                    break;
 
-                    var services = new ServiceCollection();
-                    services.AddInfrastructure();
+                case UiKind.WinForms:
+                    var uiNamespace = uiName; // dotnet new usa el nombre del proyecto como namespace raíz
 
-                    using var serviceProvider = services.BuildServiceProvider();
-                    var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+                    File.WriteAllText(Path.Combine(uiDir, "Program.cs"), $$"""
+                        using Microsoft.Extensions.DependencyInjection;
+                        using {{infrastructureNamespace}};
+                        using {{domainNamespace}};
 
-                    Console.WriteLine("{{options.ProjectName}} is running.");
-                    Console.WriteLine($"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}");
-                    """;
+                        namespace {{uiNamespace}};
 
-            File.WriteAllText(Path.Combine(uiDir, "Program.cs"), programContent);
+                        internal static class Program
+                        {
+                            [STAThread]
+                            static void Main()
+                            {
+                                var services = new ServiceCollection();
+                                services.AddInfrastructure();
+                                using var serviceProvider = services.BuildServiceProvider();
+                                var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+
+                                ApplicationConfiguration.Initialize();
+                                Application.Run(new Form1(persistenceProvider));
+                            }
+                        }
+                        """);
+
+                    File.WriteAllText(Path.Combine(uiDir, "Form1.cs"), $$"""
+                        using {{domainNamespace}};
+
+                        namespace {{uiNamespace}};
+
+                        public partial class Form1 : Form
+                        {
+                            public Form1() : this(null!)
+                            {
+                            }
+
+                            public Form1(IPersistenceProvider persistenceProvider)
+                            {
+                                InitializeComponent();
+                                Text = "{{options.ProjectName}}";
+
+                                var label = new Label
+                                {
+                                    AutoSize = true,
+                                    Location = new Point(20, 20),
+                                    Text = persistenceProvider is null
+                                        ? "No persistence provider resolved."
+                                        : $"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}"
+                                };
+
+                                Controls.Add(label);
+                            }
+                        }
+                        """);
+                    break;
+
+                default:
+                    File.WriteAllText(Path.Combine(uiDir, "Program.cs"), $$"""
+                        using Microsoft.Extensions.DependencyInjection;
+                        using {{infrastructureNamespace}};
+                        using {{domainNamespace}};
+
+                        var services = new ServiceCollection();
+                        services.AddInfrastructure();
+
+                        using var serviceProvider = services.BuildServiceProvider();
+                        var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+
+                        Console.WriteLine("{{options.ProjectName}} is running.");
+                        Console.WriteLine($"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}");
+                        """);
+                    break;
+            }
             if (options.Ui != UiKind.Api)
             {
                 SolutionGenerator.AddPackage(
@@ -160,8 +222,8 @@ namespace ArchGen.Cli.Patterns
             {
                 UiKind.Console => SolutionGenerator.CreateConsoleProject(solutionDirectory, uiName),
                 UiKind.Api => SolutionGenerator.CreateWebApiProject(solutionDirectory, uiName),
-                _ => throw new NotSupportedException(
-                    $"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
+                UiKind.WinForms => SolutionGenerator.CreateWinFormsProject(solutionDirectory, uiName),
+                _ => throw new NotSupportedException($"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
                     "Use --ui console or --ui api for now.")
             };
 
