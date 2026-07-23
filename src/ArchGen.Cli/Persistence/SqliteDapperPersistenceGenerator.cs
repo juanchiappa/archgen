@@ -12,8 +12,9 @@ namespace ArchGen.Cli.Persistence
         public IReadOnlyList<(string PackageId, string Version)> RequiredPackages(ProjectOptions options) => new[]
         {
         ("Dapper", "2.1.35"),
-        ("Microsoft.Data.Sqlite", "8.0.10")
-    };
+        ("Microsoft.Data.Sqlite", "8.0.10"),
+        ("SQLitePCLRaw.lib.e_sqlite3", "3.53.3")
+        };
 
         public void GenerateAbstraction(string abstractionDirectory, string abstractionNamespace)
         {

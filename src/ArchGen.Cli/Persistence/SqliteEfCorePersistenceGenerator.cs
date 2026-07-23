@@ -11,8 +11,9 @@ namespace ArchGen.Cli.Persistence
 
         public IReadOnlyList<(string PackageId, string Version)> RequiredPackages(ProjectOptions options) => new[]
         {
-        ("Microsoft.EntityFrameworkCore.Sqlite", "8.0.10")
-    };
+        ("Microsoft.EntityFrameworkCore.Sqlite", "8.0.10"),
+        ("SQLitePCLRaw.lib.e_sqlite3", "3.53.3")    
+        };
 
         public void GenerateAbstraction(string abstractionDirectory, string abstractionNamespace)
         {
