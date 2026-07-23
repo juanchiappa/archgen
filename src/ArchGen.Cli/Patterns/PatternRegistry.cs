@@ -9,7 +9,8 @@ namespace ArchGen.Cli.Patterns
     {
         private static readonly Dictionary<ArchitecturePattern, Func<IArchitecturePattern>> Factories = new()
         {
-             [ArchitecturePattern.NTier] = () => new NTierPattern(),
+            [ArchitecturePattern.NTier] = () => new NTierPattern(),
+            [ArchitecturePattern.CleanArchitecture] = () => new CleanArchitecturePattern(),
         };
         public static IArchitecturePattern Resolve(ArchitecturePattern pattern)
         {
