@@ -36,9 +36,11 @@ namespace ArchGen.Cli.Patterns
 
             GenerateUiProject(solutionDirectory, businessLogicDir, businessLogicProjectName, options);
 
-            var rootNamespace = $"{options.ProjectName}.DataAccess";
+            var dataAccessNamespace = $"{options.ProjectName}.DataAccess";
             var persistenceGenerator = PersistenceRegistry.Resolve(options.Persistence);
-            persistenceGenerator.Generate(dataAccessDir, rootNamespace, options);
+            persistenceGenerator.GenerateAbstraction(dataAccessDir, dataAccessNamespace);
+            persistenceGenerator.GenerateImplementation(
+                dataAccessDir, dataAccessNamespace, dataAccessNamespace, options);
 
             foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
             {

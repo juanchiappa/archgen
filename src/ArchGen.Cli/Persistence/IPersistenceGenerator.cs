@@ -8,7 +8,15 @@ namespace ArchGen.Cli.Persistence
     public interface IPersistenceGenerator
     {
         string Id { get; }
-        void Generate(string targetProjectDirectory, string rootNamespace, ProjectOptions options);
+
+        void GenerateAbstraction(string abstractionDirectory, string abstractionNamespace);
+
+        void GenerateImplementation(
+            string implementationDirectory,
+            string implementationNamespace,
+            string abstractionNamespace,
+            ProjectOptions options);
+
         IReadOnlyList<(string PackageId, string Version)> RequiredPackages(ProjectOptions options);
     }
 }
