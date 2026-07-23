@@ -84,11 +84,7 @@ namespace ArchGen.Cli.Patterns
 
             namespace {{infrastructureNamespace}};
 
-            /// <summary>
-            /// Composition helper for wiring Infrastructure implementations into
-            /// a dependency injection container. Only the composition root (the
-            /// UI project's entry point) is expected to call this.
-            /// </summary>
+
             public static class DependencyInjection
             {
                 public static IServiceCollection AddInfrastructure(this IServiceCollection services)
@@ -108,28 +104,46 @@ namespace ArchGen.Cli.Patterns
                 "Microsoft.Extensions.DependencyInjection.Abstractions",
                 "8.0.0");
 
-            var programContent = $$"""
-            using Microsoft.Extensions.DependencyInjection;
-            using {{infrastructureNamespace}};
-            using {{domainNamespace}};
+            var programContent = options.Ui == UiKind.Api
+                            ? $$"""
+                    using Microsoft.Extensions.DependencyInjection;
+                    using {{infrastructureNamespace}};
+                    using {{domainNamespace}};
 
-            var services = new ServiceCollection();
-            services.AddInfrastructure();
+                    var builder = WebApplication.CreateBuilder(args);
+                    builder.Services.AddInfrastructure();
 
-            using var serviceProvider = services.BuildServiceProvider();
-            var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+                    var app = builder.Build();
 
-            Console.WriteLine("{{options.ProjectName}} is running.");
-            Console.WriteLine($"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}");
-            """;
+                    app.MapGet("/", (IPersistenceProvider persistenceProvider) =>
+                        $"{{options.ProjectName}} API is running. Persistence provider resolved via DI: {persistenceProvider.GetType().Name}");
+
+                    app.Run();
+                    """
+                            : $$"""
+                    using Microsoft.Extensions.DependencyInjection;
+                    using {{infrastructureNamespace}};
+                    using {{domainNamespace}};
+
+                    var services = new ServiceCollection();
+                    services.AddInfrastructure();
+
+                    using var serviceProvider = services.BuildServiceProvider();
+                    var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+
+                    Console.WriteLine("{{options.ProjectName}} is running.");
+                    Console.WriteLine($"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}");
+                    """;
 
             File.WriteAllText(Path.Combine(uiDir, "Program.cs"), programContent);
-
-            SolutionGenerator.AddPackage(
-                solutionDirectory,
-                Path.Combine(uiDir, $"{uiName}.csproj"),
-                "Microsoft.Extensions.DependencyInjection",
-                "8.0.0");
+            if (options.Ui != UiKind.Api)
+            {
+                SolutionGenerator.AddPackage(
+                    solutionDirectory,
+                    Path.Combine(uiDir, $"{uiName}.csproj"),
+                    "Microsoft.Extensions.DependencyInjection",
+                    "8.0.0");
+            }
         }
 
         private static string GenerateUiProject(
@@ -145,7 +159,7 @@ namespace ArchGen.Cli.Patterns
             string uiDir = options.Ui switch
             {
                 UiKind.Console => SolutionGenerator.CreateConsoleProject(solutionDirectory, uiName),
-                UiKind.Api => SolutionGenerator.CreateConsoleProject(solutionDirectory, uiName),
+                UiKind.Api => SolutionGenerator.CreateWebApiProject(solutionDirectory, uiName),
                 _ => throw new NotSupportedException(
                     $"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
                     "Use --ui console or --ui api for now.")

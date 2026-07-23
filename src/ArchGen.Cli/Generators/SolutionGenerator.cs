@@ -45,6 +45,17 @@ namespace ArchGen.Cli.Generators
             return projectDirectory;
         }
 
+        public static string CreateWebApiProject(string solutionDirectory, string projectName)
+        {
+            var projectDirectory = Path.Combine(solutionDirectory, "src", projectName);
+            ProcessRunner.RunDotnet(
+                $"new web -n \"{projectName}\" -o \"{projectDirectory}\"",
+                solutionDirectory);
+
+            AddToSolution(solutionDirectory, Path.Combine(projectDirectory, $"{projectName}.csproj"));
+            return projectDirectory;
+        }
+
         public static void AddToSolution(string solutionDirectory, string csprojPath)
     => ProcessRunner.RunDotnet($"sln add \"{csprojPath}\"", solutionDirectory);
 

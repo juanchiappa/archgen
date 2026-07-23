@@ -34,7 +34,7 @@ namespace ArchGen.Cli.Patterns
                 Path.Combine(businessLogicDir, $"{businessLogicProjectName}.csproj"),
                 Path.Combine(dataAccessDir, $"{dataAccessProjectName}.csproj"));
 
-            GenerateUiProject(solutionDirectory, businessLogicDir, businessLogicProjectName, options);
+            var uiDir = GenerateUiProject(solutionDirectory, businessLogicDir, businessLogicProjectName, options);
 
             var dataAccessNamespace = $"{options.ProjectName}.DataAccess";
             var persistenceGenerator = PersistenceRegistry.Resolve(options);
@@ -45,6 +45,11 @@ namespace ArchGen.Cli.Patterns
             persistenceGenerator.GenerateImplementation(
                 dataAccessDir, dataAccessNamespace, dataAccessNamespace,
                 entitiesAssemblyName, entitiesNamespace, options);
+
+            if (options.Ui == UiKind.Api)
+            {
+                GenerateApiHost(uiDir, dataAccessNamespace, options);
+            }
             foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
             {
                 SolutionGenerator.AddPackage(
@@ -57,18 +62,18 @@ namespace ArchGen.Cli.Patterns
             WriteReadme(solutionDirectory, options);
         }
 
-        private static void GenerateUiProject(
-    string solutionDirectory,
-    string businessLogicDir,
-    string businessLogicProjectName,
-    ProjectOptions options)
+        private static string GenerateUiProject(
+            string solutionDirectory,
+            string businessLogicDir,
+            string businessLogicProjectName,
+            ProjectOptions options)
         {
             var uiProjectName = $"{options.ProjectName}.UI";
 
             string uiDir = options.Ui switch
             {
                 UiKind.Console => SolutionGenerator.CreateConsoleProject(solutionDirectory, uiProjectName),
-                UiKind.Api => SolutionGenerator.CreateConsoleProject(solutionDirectory, uiProjectName),
+                UiKind.Api => SolutionGenerator.CreateWebApiProject(solutionDirectory, uiProjectName),
                 _ => throw new NotSupportedException(
                     $"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
                     "Use --ui console or --ui api for now.")
@@ -78,6 +83,8 @@ namespace ArchGen.Cli.Patterns
                 solutionDirectory,
                 Path.Combine(uiDir, $"{uiProjectName}.csproj"),
                 Path.Combine(businessLogicDir, $"{businessLogicProjectName}.csproj"));
+
+            return uiDir;
         }
 
         private static void WriteReadme(string solutionDirectory, ProjectOptions options)
@@ -104,6 +111,26 @@ namespace ArchGen.Cli.Patterns
             """;
 
             File.WriteAllText(Path.Combine(solutionDirectory, "README.md"), content);
+        }
+
+        private static void GenerateApiHost(string uiDir, string dataAccessNamespace, ProjectOptions options)
+        {
+            var concreteClassName = Persistence.PersistenceProviderNames.ConcreteClassNameFor(options.Persistence);
+
+            var content = $$"""
+                using {{dataAccessNamespace}};
+
+                var builder = WebApplication.CreateBuilder(args);
+                builder.Services.AddSingleton<IPersistenceProvider, {{concreteClassName}}>();
+
+                var app = builder.Build();
+
+                app.MapGet("/", () => "{{options.ProjectName}} API is running.");
+
+                app.Run();
+                """;
+
+            File.WriteAllText(Path.Combine(uiDir, "Program.cs"), content);
         }
 
     }
