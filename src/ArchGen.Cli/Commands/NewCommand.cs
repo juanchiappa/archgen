@@ -17,8 +17,9 @@ namespace ArchGen.Cli.Commands
 
             var patternOption = new Option<ArchitecturePattern>(
                 aliases: new[] { "--pattern", "-p" },
-                getDefaultValue: () => ArchitecturePattern.NTier,
-                description: "Architecture pattern to scaffold.");
+                parseArgument: result => ParseKebabCaseEnum<ArchitecturePattern>(result),
+                isDefault: true,
+                description: "Architecture pattern to scaffold (ntier, clean-architecture, cqrs, minimal-api).");
 
             var persistenceOption = new Option<PersistenceKind>(
                 aliases: new[] { "--persistence" },
@@ -73,6 +74,37 @@ namespace ArchGen.Cli.Commands
                 Execute(options, enableGit);
             });
             return command;
+        }
+
+        private static T ParseKebabCaseEnum<T>(System.CommandLine.Parsing.ArgumentResult result) where T : struct, Enum
+        {
+            var raw = result.Tokens.Count > 0 ? result.Tokens[0].Value : string.Empty;
+            var pascalCase = string.Concat(raw.Split('-').Select(
+                part => char.ToUpperInvariant(part[0]) + part[1..]));
+
+            if (Enum.TryParse<T>(pascalCase, ignoreCase: true, out var parsed))
+            {
+                return parsed;
+            }
+
+            result.ErrorMessage =
+                $"Cannot parse argument '{raw}' as expected type '{typeof(T).Name}'. " +
+                $"Available values: {string.Join(", ", Enum.GetNames<T>().Select(ToKebabCase))}";
+            return default;
+        }
+
+        private static string ToKebabCase(string pascalCase)
+        {
+            var sb = new System.Text.StringBuilder();
+            for (var i = 0; i < pascalCase.Length; i++)
+            {
+                if (i > 0 && char.IsUpper(pascalCase[i]))
+                {
+                    sb.Append('-');
+                }
+                sb.Append(char.ToLowerInvariant(pascalCase[i]));
+            }
+            return sb.ToString();
         }
 
         public static void Execute(ProjectOptions options, bool enableGit = false)
