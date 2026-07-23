@@ -46,6 +46,7 @@ namespace ArchGen.Cli.Patterns
             persistenceGenerator.GenerateImplementation(
                 infrastructureDir, infrastructureNamespace, domainNamespace,
                 entitiesAssemblyName: domainName, entitiesNamespace: domainNamespace, options);
+
             foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
             {
                 SolutionGenerator.AddPackage(
@@ -55,7 +56,80 @@ namespace ArchGen.Cli.Patterns
                     version);
             }
 
+            GenerateDependencyInjectionWiring(
+                solutionDirectory,
+                infrastructureDir, infrastructureName, infrastructureNamespace,
+                domainNamespace,
+                uiDir, uiName: $"{options.ProjectName}.UI",
+                options);
+
             WriteReadme(solutionDirectory, options);
+        }
+
+        private static void GenerateDependencyInjectionWiring(
+            string solutionDirectory,
+            string infrastructureDir,
+            string infrastructureName,
+            string infrastructureNamespace,
+            string domainNamespace,
+            string uiDir,
+            string uiName,
+            ProjectOptions options)
+        {
+            var concreteClassName = PersistenceProviderNames.ConcreteClassNameFor(options.Persistence);
+
+            var diExtensionContent = $$"""
+            using Microsoft.Extensions.DependencyInjection;
+            using {{domainNamespace}};
+
+            namespace {{infrastructureNamespace}};
+
+            /// <summary>
+            /// Composition helper for wiring Infrastructure implementations into
+            /// a dependency injection container. Only the composition root (the
+            /// UI project's entry point) is expected to call this.
+            /// </summary>
+            public static class DependencyInjection
+            {
+                public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+                {
+                    services.AddSingleton<IPersistenceProvider, {{concreteClassName}}>();
+                    return services;
+                }
+            }
+
+            """;
+
+            File.WriteAllText(Path.Combine(infrastructureDir, "DependencyInjection.cs"), diExtensionContent);
+
+            SolutionGenerator.AddPackage(
+                solutionDirectory,
+                Path.Combine(infrastructureDir, $"{infrastructureName}.csproj"),
+                "Microsoft.Extensions.DependencyInjection.Abstractions",
+                "8.0.0");
+
+            var programContent = $$"""
+            using Microsoft.Extensions.DependencyInjection;
+            using {{infrastructureNamespace}};
+            using {{domainNamespace}};
+
+            var services = new ServiceCollection();
+            services.AddInfrastructure();
+
+            using var serviceProvider = services.BuildServiceProvider();
+            var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+
+            Console.WriteLine("{{options.ProjectName}} is running.");
+            Console.WriteLine($"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}");
+            """;
+
+            File.WriteAllText(Path.Combine(uiDir, "Program.cs"), programContent);
+
+            SolutionGenerator.AddPackage(
+                solutionDirectory,
+                Path.Combine(uiDir, $"{uiName}.csproj"),
+                "Microsoft.Extensions.DependencyInjection",
+                "8.0.0");
         }
 
         private static string GenerateUiProject(
