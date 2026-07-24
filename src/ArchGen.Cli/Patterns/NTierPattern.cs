@@ -54,6 +54,10 @@ namespace ArchGen.Cli.Patterns
             {
                 GenerateWinFormsHost(solutionDirectory, uiDir, dataAccessNamespace, options);
             }
+            else if (options.Ui == UiKind.Wpf)
+            {
+                GenerateWpfHost(solutionDirectory, uiDir, dataAccessNamespace, options);
+            }
             foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
             {
                 SolutionGenerator.AddPackage(
@@ -79,6 +83,7 @@ namespace ArchGen.Cli.Patterns
                 UiKind.Console => SolutionGenerator.CreateConsoleProject(solutionDirectory, uiProjectName),
                 UiKind.Api => SolutionGenerator.CreateWebApiProject(solutionDirectory, uiProjectName),
                 UiKind.WinForms => SolutionGenerator.CreateWinFormsProject(solutionDirectory, uiProjectName),
+                UiKind.Wpf => SolutionGenerator.CreateWpfProject(solutionDirectory, uiProjectName),
                 _ => throw new NotSupportedException($"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
                     "Use --ui console or --ui api for now.")
             };
@@ -198,6 +203,83 @@ namespace ArchGen.Cli.Patterns
 
             File.WriteAllText(Path.Combine(uiDir, "Program.cs"), programContent);
             File.WriteAllText(Path.Combine(uiDir, "Form1.cs"), form1Content);
+
+            SolutionGenerator.AddPackage(
+                solutionDirectory,
+                Path.Combine(uiDir, $"{uiProjectName}.csproj"),
+                "Microsoft.Extensions.DependencyInjection",
+                "8.0.0");
+        }
+
+        private static void GenerateWpfHost(
+    string solutionDirectory, string uiDir, string dataAccessNamespace, ProjectOptions options)
+        {
+            var uiProjectName = $"{options.ProjectName}.UI";
+            var uiNamespace = uiProjectName;
+            var concreteClassName = Persistence.PersistenceProviderNames.ConcreteClassNameFor(options.Persistence);
+
+            var appXamlContent = $"""
+                <Application x:Class="{uiNamespace}.App"
+                             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                </Application>
+                """;
+
+            var appXamlCsContent = $$"""
+                using System.Windows;
+                using Microsoft.Extensions.DependencyInjection;
+                using {{dataAccessNamespace}};
+
+                namespace {{uiNamespace}};
+
+                public partial class App : Application
+                {
+                    protected override void OnStartup(StartupEventArgs e)
+                    {
+                        base.OnStartup(e);
+
+                        var services = new ServiceCollection();
+                        services.AddSingleton<IPersistenceProvider, {{concreteClassName}}>();
+                        using var serviceProvider = services.BuildServiceProvider();
+                        var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+
+                        new MainWindow(persistenceProvider).Show();
+                    }
+                }
+                """;
+
+            var mainWindowXamlCsContent = $$"""
+                using System.Windows;
+                using System.Windows.Controls;
+                using {{dataAccessNamespace}};
+
+                namespace {{uiNamespace}};
+
+                public partial class MainWindow : Window
+                {
+                    public MainWindow() : this(null!)
+                    {
+                    }
+
+                    public MainWindow(IPersistenceProvider persistenceProvider)
+                    {
+                        InitializeComponent();
+                        Title = "{{options.ProjectName}}";
+
+                        Content = new TextBlock
+                        {
+                            Margin = new Thickness(20),
+                            Text = persistenceProvider is null
+                                ? "No persistence provider resolved."
+                                : $"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}"
+                        };
+                    }
+                }
+                """;
+
+            File.WriteAllText(Path.Combine(uiDir, "App.xaml"), appXamlContent);
+            File.WriteAllText(Path.Combine(uiDir, "App.xaml.cs"), appXamlCsContent);
+            File.WriteAllText(Path.Combine(uiDir, "MainWindow.xaml.cs"), mainWindowXamlCsContent);
 
             SolutionGenerator.AddPackage(
                 solutionDirectory,

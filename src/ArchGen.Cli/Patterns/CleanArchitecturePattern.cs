@@ -125,7 +125,7 @@ namespace ArchGen.Cli.Patterns
                     break;
 
                 case UiKind.WinForms:
-                    var uiNamespace = uiName; // dotnet new usa el nombre del proyecto como namespace raíz
+                    var uiNamespace = uiName;
 
                     File.WriteAllText(Path.Combine(uiDir, "Program.cs"), $$"""
                         using Microsoft.Extensions.DependencyInjection;
@@ -181,6 +181,70 @@ namespace ArchGen.Cli.Patterns
                         """);
                     break;
 
+                case UiKind.Wpf:
+                    var wpfNamespace = uiName;
+
+                    File.WriteAllText(Path.Combine(uiDir, "App.xaml"), $"""
+                        <Application x:Class="{wpfNamespace}.App"
+                                     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                        </Application>
+                        """);
+
+                    File.WriteAllText(Path.Combine(uiDir, "App.xaml.cs"), $$"""
+                        using System.Windows;
+                        using Microsoft.Extensions.DependencyInjection;
+                        using {{infrastructureNamespace}};
+                        using {{domainNamespace}};
+
+                        namespace {{wpfNamespace}};
+
+                        public partial class App : Application
+                        {
+                            protected override void OnStartup(StartupEventArgs e)
+                            {
+                                base.OnStartup(e);
+
+                                var services = new ServiceCollection();
+                                services.AddInfrastructure();
+                                using var serviceProvider = services.BuildServiceProvider();
+                                var persistenceProvider = serviceProvider.GetRequiredService<IPersistenceProvider>();
+
+                                new MainWindow(persistenceProvider).Show();
+                            }
+                        }
+                        """);
+
+                    File.WriteAllText(Path.Combine(uiDir, "MainWindow.xaml.cs"), $$"""
+                        using System.Windows;
+                        using System.Windows.Controls;
+                        using {{domainNamespace}};
+
+                        namespace {{wpfNamespace}};
+
+                        public partial class MainWindow : Window
+                        {
+                            public MainWindow() : this(null!)
+                            {
+                            }
+
+                            public MainWindow(IPersistenceProvider persistenceProvider)
+                            {
+                                InitializeComponent();
+                                Title = "{{options.ProjectName}}";
+
+                                Content = new TextBlock
+                                {
+                                    Margin = new Thickness(20),
+                                    Text = persistenceProvider is null
+                                        ? "No persistence provider resolved."
+                                        : $"Persistence provider resolved via DI: {persistenceProvider.GetType().Name}"
+                                };
+                            }
+                        }
+                        """);
+                    break;
+
                 default:
                     File.WriteAllText(Path.Combine(uiDir, "Program.cs"), $$"""
                         using Microsoft.Extensions.DependencyInjection;
@@ -223,6 +287,7 @@ namespace ArchGen.Cli.Patterns
                 UiKind.Console => SolutionGenerator.CreateConsoleProject(solutionDirectory, uiName),
                 UiKind.Api => SolutionGenerator.CreateWebApiProject(solutionDirectory, uiName),
                 UiKind.WinForms => SolutionGenerator.CreateWinFormsProject(solutionDirectory, uiName),
+                UiKind.Wpf => SolutionGenerator.CreateWpfProject(solutionDirectory, uiName),
                 _ => throw new NotSupportedException($"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
                     "Use --ui console or --ui api for now.")
             };
