@@ -58,6 +58,10 @@ namespace ArchGen.Cli.Patterns
             {
                 GenerateWpfHost(solutionDirectory, uiDir, dataAccessNamespace, options);
             }
+            else if (options.Ui == UiKind.Blazor)
+            {
+                GenerateBlazorHost(solutionDirectory, uiDir, dataAccessNamespace, options);
+            }
             foreach (var (packageId, version) in persistenceGenerator.RequiredPackages(options))
             {
                 SolutionGenerator.AddPackage(
@@ -84,6 +88,7 @@ namespace ArchGen.Cli.Patterns
                 UiKind.Api => SolutionGenerator.CreateWebApiProject(solutionDirectory, uiProjectName),
                 UiKind.WinForms => SolutionGenerator.CreateWinFormsProject(solutionDirectory, uiProjectName),
                 UiKind.Wpf => SolutionGenerator.CreateWpfProject(solutionDirectory, uiProjectName),
+                UiKind.Blazor => SolutionGenerator.CreateBlazorServerProject(solutionDirectory, uiProjectName),
                 _ => throw new NotSupportedException($"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
                     "Use --ui console or --ui api for now.")
             };
@@ -286,6 +291,38 @@ namespace ArchGen.Cli.Patterns
                 Path.Combine(uiDir, $"{uiProjectName}.csproj"),
                 "Microsoft.Extensions.DependencyInjection",
                 "8.0.0");
+        }
+
+        private static void GenerateBlazorHost(
+    string solutionDirectory, string uiDir, string dataAccessNamespace, ProjectOptions options)
+        {
+            var concreteClassName = Persistence.PersistenceProviderNames.ConcreteClassNameFor(options.Persistence);
+
+            var programPath = Path.Combine(uiDir, "Program.cs");
+            var programContent = File.ReadAllText(programPath);
+
+
+            var insertionPoint = "var builder = WebApplication.CreateBuilder(args);";
+            var diLine = $"\nbuilder.Services.AddSingleton<IPersistenceProvider, {concreteClassName}>();";
+            programContent = programContent.Replace(insertionPoint, insertionPoint + diLine);
+            programContent = $"using {dataAccessNamespace};\n" + programContent;
+
+            File.WriteAllText(programPath, programContent);
+
+            var homePagePath = Path.Combine(uiDir, "Components", "Pages", "Home.razor");
+            var homePageContent = $$"""
+                @page "/"
+                @using {{dataAccessNamespace}}
+                @inject IPersistenceProvider PersistenceProvider
+
+                <PageTitle>{{options.ProjectName}}</PageTitle>
+
+                <h1>{{options.ProjectName}}</h1>
+
+                <p>Persistence provider resolved via DI: @PersistenceProvider.GetType().Name</p>
+                """;
+
+            File.WriteAllText(homePagePath, homePageContent);
         }
     }
 }

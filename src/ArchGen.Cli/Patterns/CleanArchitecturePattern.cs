@@ -245,6 +245,31 @@ namespace ArchGen.Cli.Patterns
                         """);
                     break;
 
+                case UiKind.Blazor:
+                    var programPath = Path.Combine(uiDir, "Program.cs");
+                    var programContent = File.ReadAllText(programPath);
+
+                    var insertionPoint = "var builder = WebApplication.CreateBuilder(args);";
+                    var diLine = "\nbuilder.Services.AddInfrastructure();";
+                    programContent = programContent.Replace(insertionPoint, insertionPoint + diLine);
+                    programContent = $"using {infrastructureNamespace};\n" + programContent;
+
+                    File.WriteAllText(programPath, programContent);
+
+                    var homePagePath = Path.Combine(uiDir, "Components", "Pages", "Home.razor");
+                    File.WriteAllText(homePagePath, $$"""
+                        @page "/"
+                        @using {{domainNamespace}}
+                        @inject IPersistenceProvider PersistenceProvider
+
+                        <PageTitle>{{options.ProjectName}}</PageTitle>
+
+                        <h1>{{options.ProjectName}}</h1>
+
+                        <p>Persistence provider resolved via DI: @PersistenceProvider.GetType().Name</p>
+                        """);
+                    break;
+
                 default:
                     File.WriteAllText(Path.Combine(uiDir, "Program.cs"), $$"""
                         using Microsoft.Extensions.DependencyInjection;
@@ -262,7 +287,7 @@ namespace ArchGen.Cli.Patterns
                         """);
                     break;
             }
-            if (options.Ui != UiKind.Api)
+            if (options.Ui != UiKind.Api && options.Ui != UiKind.Blazor)
             {
                 SolutionGenerator.AddPackage(
                     solutionDirectory,
@@ -288,6 +313,7 @@ namespace ArchGen.Cli.Patterns
                 UiKind.Api => SolutionGenerator.CreateWebApiProject(solutionDirectory, uiName),
                 UiKind.WinForms => SolutionGenerator.CreateWinFormsProject(solutionDirectory, uiName),
                 UiKind.Wpf => SolutionGenerator.CreateWpfProject(solutionDirectory, uiName),
+                UiKind.Blazor => SolutionGenerator.CreateBlazorServerProject(solutionDirectory, uiName),
                 _ => throw new NotSupportedException($"UI type '{options.Ui}' is not implemented yet (planned for a later phase). " +
                     "Use --ui console or --ui api for now.")
             };

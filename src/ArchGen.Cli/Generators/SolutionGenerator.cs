@@ -78,6 +78,18 @@ namespace ArchGen.Cli.Generators
             return projectDirectory;
         }
 
+        public static string CreateBlazorServerProject(string solutionDirectory, string projectName)
+        {
+            var projectDirectory = Path.Combine(solutionDirectory, "src", projectName);
+
+            ProcessRunner.RunDotnet(
+                $"new blazor -n \"{projectName}\" -o \"{projectDirectory}\" --interactivity Server",
+                solutionDirectory);
+
+            AddToSolution(solutionDirectory, Path.Combine(projectDirectory, $"{projectName}.csproj"));
+            return projectDirectory;
+        }
+
         public static void AddToSolution(string solutionDirectory, string csprojPath)
     => ProcessRunner.RunDotnet($"sln add \"{csprojPath}\"", solutionDirectory);
 
