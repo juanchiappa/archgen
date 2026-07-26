@@ -12,6 +12,7 @@ namespace ArchGen.Cli.Patterns
             [ArchitecturePattern.NTier] = () => new NTierPattern(),
             [ArchitecturePattern.CleanArchitecture] = () => new CleanArchitecturePattern(),
             [ArchitecturePattern.Cqrs] = () => new CqrsPattern(),
+            [ArchitecturePattern.MinimalApi] = () => new MinimalApiPattern(),
         };
         public static IArchitecturePattern Resolve(ArchitecturePattern pattern)
         {
