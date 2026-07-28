@@ -47,6 +47,8 @@ namespace ArchGen.Cli.Patterns
             var concreteClassName = PersistenceProviderNames.ConcreteClassNameFor(options.Persistence);
 
             File.WriteAllText(Path.Combine(projectDir, "Program.cs"), $$"""
+            using {{projectNamespace}};
+
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddSingleton<IPersistenceProvider, {{concreteClassName}}>();
 
