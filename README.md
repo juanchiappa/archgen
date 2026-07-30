@@ -146,7 +146,6 @@ persistence layer when switching backends.
 - [x] Phase 3 — Clean Architecture + full dependency injection
 - [x] Phase 4 — 5 UI types (Console, Api, WinForms, Wpf, Blazor Server)
 - [x] Phase 5 — CQRS + Minimal API patterns
-- [ ] NuGet publication as a global tool
 
 ## Tech stack
 
