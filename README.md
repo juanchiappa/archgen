@@ -31,7 +31,17 @@ working example wired end-to-end — ready to build and run immediately.
 
 ## Installation
 
-Not yet published to NuGet. For now, clone and run from source:
+```bash
+dotnet tool install --global archgen-cli
+```
+
+The tool installs as `archgen`:
+
+```bash
+archgen new MyProject --pattern ntier
+```
+
+Alternatively, clone and run from source:
 
 ```bash
 git clone https://github.com/juanchiappa/archgen.git
